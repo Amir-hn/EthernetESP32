@@ -21,9 +21,7 @@
 #ifndef _ETH_DRIVER_H_
 #define _ETH_DRIVER_H_
 
-#include "esp_system.h"
-#include "esp_eth.h"
-#include "SPI.h"
+#include <SPI.h>
 
 #ifndef ETH_PHY_SPI_FREQ_MHZ
 #define ETH_PHY_SPI_FREQ_MHZ 20
@@ -31,31 +29,45 @@
 
 class EthDriver {
 public:
+  virtual ~EthDriver() {
+    end();
+  }
 
-  virtual ~EthDriver();
+  void begin() {
+    if (mac == nullptr) {
+      mac = newMAC();
+      phy = newPHY();
+    }
+  }
 
-  void begin();
-  void end();
+  void end() {
+    if (mac != nullptr) {
+      mac->del(mac);
+      mac = nullptr;
+    }
+    if (phy != nullptr) {
+      phy->del(phy);
+      phy = nullptr;
+    }
+  }
 
-  void setPhyAddress(int32_t addr);
+  void setPhyAddress(int32_t addr) {
+    phyAddr = addr;
+  }
 
   virtual bool usesIRQ() = 0;
 
 protected:
-  virtual esp_eth_mac_t* newMAC() = 0;
-  virtual esp_eth_phy_t* newPHY() = 0;
-
-  friend class EthernetClass;
+  virtual esp_eth_mac_t *newMAC() = 0;
+  virtual esp_eth_phy_t *newPHY() = 0;
 
   int32_t phyAddr = ESP_ETH_PHY_ADDR_AUTO;
-
-  esp_eth_mac_t* mac = NULL;
-  esp_eth_phy_t* phy = NULL;
+  esp_eth_mac_t *mac = nullptr;
+  esp_eth_phy_t *phy = nullptr;
 };
 
 class EthSpiDriver : public EthDriver {
 public:
-
   EthSpiDriver(int8_t cs = SS, int8_t irq = -1, int8_t rst = -1) {
     pinCS = cs;
     pinIRQ = irq;
@@ -78,18 +90,35 @@ public:
   virtual bool write(uint32_t cmd, uint32_t addr, const void *data, uint32_t data_len) = 0;
 
 protected:
-  void initCustomSPI(eth_spi_custom_driver_config_t& customSPI);
+  void initCustomSPI(eth_spi_custom_driver_config_t &customSPI) {
+    customSPI.config = this;
+    customSPI.init = eth_spi_init;
+    customSPI.deinit = eth_spi_deinit;
+    customSPI.read = eth_spi_read;
+    customSPI.write = eth_spi_write;
+  }
 
-  SPIClass* spi = &SPI;
+  SPIClass *spi = &SPI;
   uint8_t spiFreq = ETH_PHY_SPI_FREQ_MHZ;
   int8_t pinCS;
   int8_t pinIRQ;
   int8_t pinRst;
 };
 
-void* eth_spi_init(const void *ctx);
-esp_err_t eth_spi_deinit(void *ctx);
-esp_err_t eth_spi_read(void *ctx, uint32_t cmd, uint32_t addr, void *data, uint32_t data_len);
-esp_err_t eth_spi_write(void *ctx, uint32_t cmd, uint32_t addr, const void *data, uint32_t data_len);
+void *eth_spi_init(const void *ctx) {
+  return (void *)ctx;
+}
+
+esp_err_t eth_spi_deinit(void *ctx) {
+  return ESP_OK;
+}
+
+esp_err_t eth_spi_read(void *ctx, uint32_t cmd, uint32_t addr, void *data, uint32_t data_len) {
+  return ((EthSpiDriver *)ctx)->read(cmd, addr, data, data_len) ? ESP_OK : ESP_FAIL;
+}
+
+esp_err_t eth_spi_write(void *ctx, uint32_t cmd, uint32_t addr, const void *data, uint32_t data_len) {
+  return ((EthSpiDriver *)ctx)->write(cmd, addr, data, data_len) ? ESP_OK : ESP_FAIL;
+}
 
 #endif

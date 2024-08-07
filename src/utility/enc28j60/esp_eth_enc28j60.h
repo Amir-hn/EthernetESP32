@@ -1,18 +1,15 @@
-/*
- * SPDX-FileCopyrightText: 2021-2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// SPDX-FileCopyrightText: 2021-2022 Espressif Systems (Shanghai) CO LTD
+//
+// SPDX-License-Identifier: Apache-2.0
 
-#pragma once
+#ifndef ETH_ENC28J60_H
+#define ETH_ENC28J60_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include "esp_eth_phy.h"
-#include "esp_eth_mac.h"
-#include "driver/spi_master.h"
+#include <SPI.h>
 
 #define CS_HOLD_TIME_MIN_NS 210
 
@@ -21,11 +18,10 @@ extern "C" {
  *
  */
 typedef struct {
-    spi_host_device_t spi_host_id;              /*!< SPI peripheral */
-    spi_device_interface_config_t *spi_devcfg;  /*!< SPI device configuration */
-    eth_spi_custom_driver_config_t custom_spi_driver;   /*!< Custom SPI driver definitions */
-    int int_gpio_num;                           /*!< Interrupt GPIO number */
-    uint32_t poll_period_ms;                    /*!< Period in ms to poll rx status when interrupt mode is not used */
+    uint8_t spi_host_id;              /*!< SPI peripheral */
+    SPISettings *spi_devcfg;          /*!< SPI device configuration */
+    int int_gpio_num;                 /*!< Interrupt GPIO number */
+    uint32_t poll_period_ms;          /*!< Period in ms to poll rx status when interrupt mode is not used */
 } eth_enc28j60_config_t;
 
 /**
@@ -44,12 +40,11 @@ typedef enum {
  *
  */
 #define ETH_ENC28J60_DEFAULT_CONFIG(spi_host, spi_devcfg_p) \
-    {                                             \
-        .spi_host_id = spi_host,                  \
-        .spi_devcfg = spi_devcfg_p,               \
-        .custom_spi_driver = ETH_DEFAULT_SPI,     \
-        .int_gpio_num = 4,                        \
-        .poll_period_ms = 0,                      \
+    {                                                      \
+        .spi_host_id = spi_host,                           \
+        .spi_devcfg = spi_devcfg_p,                        \
+        .int_gpio_num = 4,                                 \
+        .poll_period_ms = 0,                               \
     }
 
 /**
@@ -83,7 +78,7 @@ static inline uint8_t enc28j60_cal_spi_cs_hold_time(int clock_speed_mhz)
 *      - instance: create MAC instance successfully
 *      - NULL: create MAC instance failed because some error occurred
 */
-esp_eth_mac_t *esp_eth_mac_new_enc28j60(const eth_enc28j60_config_t *enc28j60_config, const eth_mac_config_t *mac_config);
+void* esp_eth_mac_new_enc28j60(const eth_enc28j60_config_t *enc28j60_config, const void *mac_config);
 
 /**
 * @brief Create a PHY instance of ENC28J60
@@ -94,7 +89,7 @@ esp_eth_mac_t *esp_eth_mac_new_enc28j60(const eth_enc28j60_config_t *enc28j60_co
 *      - instance: create PHY instance successfully
 *      - NULL: create PHY instance failed because some error occurred
 */
-esp_eth_phy_t *esp_eth_phy_new_enc28j60(const eth_phy_config_t *config);
+void* esp_eth_phy_new_enc28j60(const void *config);
 
 /**
  * @brief Get ENC28J60 silicon revision ID
@@ -103,8 +98,10 @@ esp_eth_phy_t *esp_eth_phy_new_enc28j60(const eth_phy_config_t *config);
  * @return eth_enc28j60_rev_t
  *           - returns silicon revision ID read during initialization
  */
-eth_enc28j60_rev_t emac_enc28j60_get_chip_info(esp_eth_mac_t *mac);
+eth_enc28j60_rev_t emac_enc28j60_get_chip_info(void* mac);
 
 #ifdef __cplusplus
 }
 #endif
+
+#endif // ETH_ENC28J60_H

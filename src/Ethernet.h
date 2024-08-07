@@ -21,9 +21,8 @@
 #ifndef _ETHERNET_ESP32_H_
 #define _ETHERNET_ESP32_H_
 
-#include "Network.h"
-#include "esp_netif.h"
-#include "utility/EthDriver.h"
+#include <Ethernet.h>
+#include <SPI.h>
 
 enum EthernetLinkStatus {
   Unknown, LinkON, LinkOFF
@@ -33,19 +32,19 @@ enum EthernetHardwareStatus {
   EthernetNoHardware, EthernetHardwareFound
 };
 
-class EthernetClass : public NetworkInterface {
+class EthernetClass {
 
 public:
 
   EthernetClass();
 
-  void init(EthDriver& ethDriver);
+  void init(EthernetDriver& ethDriver);
 
   int begin(uint8_t *mac, unsigned long timeout = 60000);
-  void begin(uint8_t *mac, IPAddress ip, IPAddress dns = INADDR_NONE, IPAddress gateway = INADDR_NONE, IPAddress subnet = INADDR_NONE);
+  void begin(uint8_t *mac, IPAddress ip, IPAddress dns = IPAddress(), IPAddress gateway = IPAddress(), IPAddress subnet = IPAddress());
 
   int begin(unsigned long timeout = 60000);
-  void begin(IPAddress ip, IPAddress dns = INADDR_NONE, IPAddress gateway = INADDR_NONE, IPAddress subnet = INADDR_NONE);
+  void begin(IPAddress ip, IPAddress dns = IPAddress(), IPAddress gateway = IPAddress(), IPAddress subnet = IPAddress());
 
   void end();
   int maintain();
@@ -60,34 +59,22 @@ public:
   void setDnsServerIP(const IPAddress dns);
 
   // API functions missing in NetworkInterface
-  void setDNS(IPAddress dns, IPAddress dns2 = INADDR_NONE);
+  void setDNS(IPAddress dns, IPAddress dns2 = IPAddress());
   int hostByName(const char *hostname, IPAddress &result);
 
   virtual size_t printDriverInfo(Print &out) const;
 
   void _onEthEvent(int32_t eventId, void *eventData);
 
-  esp_eth_handle_t getEthHandle() {
-    return ethHandle;
-  }
-
   uint8_t index = 0;
 
 protected:
-  EthDriver* driver = nullptr;
-  esp_eth_handle_t ethHandle = NULL;
-  esp_event_handler_instance_t _eth_ev_instance = NULL;
-  esp_eth_netif_glue_handle_t glueHandle = NULL;
-
+  EthernetDriver* driver = nullptr;
   EthernetHardwareStatus hwStatus = EthernetNoHardware;
 
   bool beginETH(uint8_t *mac);
 };
 
 extern EthernetClass Ethernet;
-
-typedef NetworkUDP EthernetUDP;
-typedef NetworkServer EthernetServer;
-typedef NetworkClient EthernetClient;
 
 #endif

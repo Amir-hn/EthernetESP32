@@ -18,56 +18,86 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "EthDriver.h"
-
+#include <SPI.h>
 #include <Arduino.h>
 
-void EthDriver::begin() {
-  if (mac == NULL) {
-    mac = newMAC();
-    phy = newPHY();
-  }
-}
-void EthDriver::end() {
-  if (mac != NULL) {
-    mac->del(mac);
-    mac = NULL;
-  }
-  if (phy != NULL) {
-    phy->del(phy);
-    phy = NULL;
-  }
-}
+class EthDriver {
+public:
+  EthDriver() : mac(NULL), phy(NULL), phyAddr(0) {}
 
-void EthDriver::setPhyAddress(int32_t addr) {
-  phyAddr = addr;
-}
+  void begin() {
+    if (mac == NULL) {
+      mac = newMAC();
+      phy = newPHY();
+    }
+  }
 
-EthDriver::~EthDriver() {
-  end();
+  void end() {
+    if (mac != NULL) {
+      mac->del(mac);
+      mac = NULL;
+    }
+    if (phy != NULL) {
+      phy->del(phy);
+      phy = NULL;
+    }
+  }
+
+  void setPhyAddress(int32_t addr) {
+    phyAddr = addr;
+  }
+
+  ~EthDriver() {
+    end();
+  }
+
+protected:
+  virtual esp_eth_mac_t *newMAC() = 0;
+  virtual esp_eth_phy_t *newPHY() = 0;
+
+  esp_eth_mac_t *mac;
+  esp_eth_phy_t *phy;
+  int32_t phyAddr;
 };
 
-void* eth_spi_init(const void *ctx) {
+class EthSpiDriver : public EthDriver {
+public:
+  EthSpiDriver(SPIClass *spi) : spi(spi) {}
+
+  void initCustomSPI(eth_spi_custom_driver_config_t &customSPI) {
+    customSPI.config = this;
+    customSPI.init = eth_spi_init;
+    customSPI.deinit = eth_spi_deinit;
+    customSPI.read = eth_spi_read;
+    customSPI.write = eth_spi_write;
+  }
+
+  bool read(uint32_t cmd, uint32_t addr, void *data, uint32_t data_len) {
+    // Implement your SPI read logic here
+    return true;
+  }
+
+  bool write(uint32_t cmd, uint32_t addr, const void *data, uint32_t data_len) {
+    // Implement your SPI write logic here
+    return true;
+  }
+
+private:
+  SPIClass *spi;
+};
+
+void *eth_spi_init(const void *ctx) {
   return (void *)ctx;
 }
 
-esp_err_t eth_spi_deinit(void *ctx) {
-  return ESP_OK;
+bool eth_spi_deinit(void *ctx) {
+  return true;
 }
 
-esp_err_t eth_spi_read(void *ctx, uint32_t cmd, uint32_t addr, void *data, uint32_t data_len) {
-  return ((EthSpiDriver*) ctx)->read(cmd, addr, data, data_len);
+bool eth_spi_read(void *ctx, uint32_t cmd, uint32_t addr, void *data, uint32_t data_len) {
+  return ((EthSpiDriver *)ctx)->read(cmd, addr, data, data_len);
 }
 
-esp_err_t eth_spi_write(void *ctx, uint32_t cmd, uint32_t addr, const void *data, uint32_t data_len) {
-  return ((EthSpiDriver*) ctx)->write(cmd, addr, data, data_len);
+bool eth_spi_write(void *ctx, uint32_t cmd, uint32_t addr, const void *data, uint32_t data_len) {
+  return ((EthSpiDriver *)ctx)->write(cmd, addr, data, data_len);
 }
-
-void EthSpiDriver::initCustomSPI(eth_spi_custom_driver_config_t& customSPI) {
-  customSPI.config = this;
-  customSPI.init = eth_spi_init;
-  customSPI.deinit = eth_spi_deinit;
-  customSPI.read = eth_spi_read;
-  customSPI.write = eth_spi_write;
-}
-
